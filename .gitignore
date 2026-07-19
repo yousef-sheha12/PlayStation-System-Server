@@ -1,0 +1,12 @@
+## .NET
+bin/
+obj/
+publish/
+*.zip
+*.user
+*.suo
+.vs/
+*.DotSettings.user
+
+## Logs
+logs/
