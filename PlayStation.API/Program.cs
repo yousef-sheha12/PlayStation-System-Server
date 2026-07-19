@@ -123,20 +123,19 @@ var app = builder.Build();
 
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-});
-
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "PlayStation Management System API v1");
-    c.RoutePrefix = "swagger";
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
 });
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (!app.Environment.IsProduction())
 {
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "PlayStation Management System API v1");
+        c.RoutePrefix = "swagger";
+    });
     app.UseHttpsRedirection();
 }
 
@@ -152,13 +151,12 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<PlayStationDbContext>();
     try
     {
-        context.Database.EnsureCreated();
+        context.Database.Migrate();
 
         if (!context.Roles.Any(r => r.Name == "Worker"))
         {
             context.Roles.Add(new PlayStation.Domain.Entities.Role
             {
-                Id = 2,
                 Name = "Worker",
                 Description = "System Worker",
                 CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
@@ -166,15 +164,15 @@ using (var scope = app.Services.CreateScope())
             context.SaveChanges();
         }
 
-        if (!context.Users.Any(u => u.Email == "worker@playstation.com"))
+        var workerRole = context.Roles.FirstOrDefault(r => r.Name == "Worker");
+        if (workerRole != null && !context.Users.Any(u => u.Email == "worker@playstation.com"))
         {
             context.Users.Add(new PlayStation.Domain.Entities.User
             {
-                Id = 2,
                 Email = "worker@playstation.com",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("Worker@123"),
                 FullName = "System Worker",
-                RoleId = 2,
+                RoleId = workerRole.Id,
                 IsActive = true,
                 CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             });
