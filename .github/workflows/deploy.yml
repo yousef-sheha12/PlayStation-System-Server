@@ -28,14 +28,11 @@ jobs:
       run: dotnet publish PlayStation.API/PlayStation.API.csproj -c Release -o publish --self-contained false
 
     - name: Deploy to MonsterASP via FTP
-      uses: SamKirkland/FTP-Deploy-Action@4.3.4
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./publish
-        server-dir: /wwwroot
-        delete-remote: true
-        exclude: |
-          *.zip
-          logs/**
+      run: |
+        apt-get update && apt-get install -y lftp
+        lftp -c "
+          set ssl:verify-certificate no;
+          open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
+          mirror -R --delete --verbose ./publish /wwwroot;
+          bye;
+        "
