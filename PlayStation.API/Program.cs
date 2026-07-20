@@ -183,10 +183,36 @@ app.MapGet("/health", async (PlayStationDbContext context) =>
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<PlayStationDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     try
     {
-        context.Database.Migrate();
+        var pendingMigrations = context.Database.GetPendingMigrations().ToList();
+        if (pendingMigrations.Any())
+        {
+            logger.LogInformation("Applying {Count} pending migrations", pendingMigrations.Count);
+            context.Database.Migrate();
+        }
+        else
+        {
+            logger.LogInformation("No pending migrations");
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Migration failed, database may already exist with tables. Attempting EnsureCreated as fallback.");
+        try
+        {
+            context.Database.EnsureCreated();
+            logger.LogInformation("Database EnsureCreated succeeded");
+        }
+        catch (Exception ex2)
+        {
+            logger.LogError(ex2, "Database EnsureCreated also failed");
+        }
+    }
 
+    try
+    {
         if (!context.Roles.Any(r => r.Name == "Worker"))
         {
             context.Roles.Add(new PlayStation.Domain.Entities.Role
@@ -226,8 +252,7 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Failed to create database");
+        logger.LogError(ex, "Failed to seed database");
     }
 }
 
