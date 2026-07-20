@@ -128,14 +128,15 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "PlayStation Management System API v1");
+    c.RoutePrefix = "swagger";
+});
+
 if (!app.Environment.IsProduction())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "PlayStation Management System API v1");
-        c.RoutePrefix = "swagger";
-    });
     app.UseHttpsRedirection();
 }
 
