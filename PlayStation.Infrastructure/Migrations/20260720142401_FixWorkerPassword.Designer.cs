@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PlayStation.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using PlayStation.Infrastructure.Data;
 namespace PlayStation.Infrastructure.Migrations
 {
     [DbContext(typeof(PlayStationDbContext))]
-    partial class PlayStationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720142401_FixWorkerPassword")]
+    partial class FixWorkerPassword
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
