@@ -15,7 +15,7 @@ public class MappingProfile : Profile
     public MappingProfile()
     {
         CreateMap<Product, ProductDto>()
-            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name))
+            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : string.Empty))
             .ForMember(dest => dest.IsLowStock, opt => opt.MapFrom(src => src.Quantity <= src.LowStockThreshold && src.Quantity > 0))
             .ForMember(dest => dest.IsOutOfStock, opt => opt.MapFrom(src => src.Quantity == 0));
 
@@ -60,6 +60,6 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name));
 
         CreateMap<Product, ProductStockAlertDto>()
-            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name));
+            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : string.Empty));
     }
 }

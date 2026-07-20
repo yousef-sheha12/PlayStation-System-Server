@@ -19,9 +19,6 @@ public class CreateProductValidator : AbstractValidator<CreateProductDto>
 
         RuleFor(x => x.LowStockThreshold)
             .GreaterThanOrEqualTo(0).WithMessage("Low stock threshold must be greater than or equal to 0");
-
-        RuleFor(x => x.CategoryId)
-            .GreaterThan(0).WithMessage("Category is required");
     }
 }
 
@@ -41,8 +38,5 @@ public class UpdateProductValidator : AbstractValidator<UpdateProductDto>
 
         RuleFor(x => x.LowStockThreshold)
             .GreaterThanOrEqualTo(0).WithMessage("Low stock threshold must be greater than or equal to 0");
-
-        RuleFor(x => x.CategoryId)
-            .GreaterThan(0).WithMessage("Category is required");
     }
 }

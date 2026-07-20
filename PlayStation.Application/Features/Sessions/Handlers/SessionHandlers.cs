@@ -9,35 +9,30 @@ using PlayStation.Domain.Enums;
 
 namespace PlayStation.Application.Features.Sessions.Handlers;
 
-public class StartSessionHandler : IRequestHandler<StartSessionCommand, Result<int>>
+public class StartSessionHandler : IRequestHandler<StartSessionCommand, Result<SessionDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
 
-    public StartSessionHandler(IUnitOfWork unitOfWork)
+    public StartSessionHandler(IUnitOfWork unitOfWork, IMapper mapper)
     {
         _unitOfWork = unitOfWork;
+        _mapper = mapper;
     }
 
-    public async Task<Result<int>> Handle(StartSessionCommand request, CancellationToken cancellationToken)
+    public async Task<Result<SessionDto>> Handle(StartSessionCommand request, CancellationToken cancellationToken)
     {
         var device = await _unitOfWork.Repository<Device>().GetByIdAsync(request.Request.DeviceId);
         if (device == null || device.IsDeleted)
-            return Result<int>.Failure("Device not found");
+            return Result<SessionDto>.Failure("Device not found");
 
         if (device.Status != DeviceStatus.Available)
-            return Result<int>.Failure("Device is not available");
-
-        if (request.Request.CustomerId.HasValue)
-        {
-            var customer = await _unitOfWork.Repository<Customer>().GetByIdAsync(request.Request.CustomerId.Value);
-            if (customer == null || customer.IsDeleted)
-                return Result<int>.Failure("Customer not found");
-        }
+            return Result<SessionDto>.Failure("Device is not available");
 
         var session = new Session
         {
             DeviceId = request.Request.DeviceId,
-            CustomerId = request.Request.CustomerId,
+            CustomerName = request.Request.CustomerName,
             HourlyRate = request.Request.HourlyRate,
             StartTime = DateTime.UtcNow,
             Status = SessionStatus.Active
@@ -48,7 +43,10 @@ public class StartSessionHandler : IRequestHandler<StartSessionCommand, Result<i
         await _unitOfWork.Repository<Session>().AddAsync(session);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result<int>.Success(session.Id, "Session started successfully");
+        var sessionDto = _mapper.Map<SessionDto>(session);
+        sessionDto.DeviceName = device.Name;
+        sessionDto.CustomerName = request.Request.CustomerName;
+        return Result<SessionDto>.Success(sessionDto, "Session started successfully");
     }
 }
 
