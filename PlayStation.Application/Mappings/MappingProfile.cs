@@ -44,7 +44,7 @@ public class MappingProfile : Profile
 
         CreateMap<Session, SessionDto>()
             .ForMember(dest => dest.DeviceName, opt => opt.MapFrom(src => src.Device.Name))
-            .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer != null ? src.Customer.Name : null))
+            .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer != null ? src.Customer.Name : src.CustomerName))
             .ForMember(dest => dest.Products, opt => opt.MapFrom(src => src.SessionProducts))
             .ForMember(dest => dest.SessionProducts, opt => opt.MapFrom(src => src.SessionProducts));
 

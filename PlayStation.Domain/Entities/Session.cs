@@ -9,6 +9,7 @@ public class Session : BaseEntity
     public Device Device { get; set; } = null!;
     public int? CustomerId { get; set; }
     public Customer? Customer { get; set; }
+    public string? CustomerName { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime? EndTime { get; set; }
     public DateTime? PauseTime { get; set; }

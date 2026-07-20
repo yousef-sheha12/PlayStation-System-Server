@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PlayStation.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using PlayStation.Infrastructure.Data;
 namespace PlayStation.Infrastructure.Migrations
 {
     [DbContext(typeof(PlayStationDbContext))]
-    partial class PlayStationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260720021131_MakeCategoryIdNullable")]
+    partial class MakeCategoryIdNullable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -451,14 +454,6 @@ namespace PlayStation.Infrastructure.Migrations
                             Description = "System Administrator",
                             IsDeleted = false,
                             Name = "Admin"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "PlayStation Worker",
-                            IsDeleted = false,
-                            Name = "Worker"
                         });
                 });
 
@@ -621,7 +616,7 @@ namespace PlayStation.Infrastructure.Migrations
                             FullName = "System Administrator",
                             IsActive = true,
                             IsDeleted = false,
-                            PasswordHash = "$2a$11$kzsY6Alnmf6FVvaKHidcP.3mazLDXXlCxY9PquGl5i3p2D6EZU4si",
+                            PasswordHash = "$2a$11$3dG268.yFRVbb6S93ZlE8ekHs8fpsS1afzob9gf6yioRlxCiIpgQu",
                             RoleId = 1
                         });
                 });
