@@ -27,38 +27,19 @@ jobs:
     - name: Publish
       run: dotnet publish PlayStation.API/PlayStation.API.csproj -c Release -o publish --self-contained false
 
+    - name: List published files
+      run: ls -la publish/
+
     - name: Deploy to MonsterASP via FTP
       run: |
         sudo apt-get update && sudo apt-get install -y lftp
-
-        # 1. Stop the app by uploading app_offline.htm
-        echo '<html><body><h1>Deploying...</h1></body></html>' > app_offline.htm
         lftp -c "
           set ssl:verify-certificate no;
-          set net:timeout 30;
+          set net:timeout 60;
           set net:max-retries 3;
+          set ftp:passive-mode yes;
           open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
-          put app_offline.htm -o /wwwroot/app_offline.htm;
-          bye;
-        "
-        sleep 5
-
-        # 2. Deploy all files
-        lftp -c "
-          set ssl:verify-certificate no;
-          set net:timeout 30;
-          set net:max-retries 3;
-          open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
-          mirror -R --verbose --no-perms --ignore-time --parallel=1 --exclude logs/ ./publish /wwwroot;
-          bye;
-        " || true
-
-        # 3. Remove app_offline.htm to restart the app
-        lftp -c "
-          set ssl:verify-certificate no;
-          set net:timeout 30;
-          set net:max-retries 3;
-          open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
-          rm /wwwroot/app_offline.htm;
+          cd /wwwroot;
+          mput -e publish/*;
           bye;
         "
