@@ -27,12 +27,25 @@ jobs:
     - name: Publish
       run: dotnet publish PlayStation.API/PlayStation.API.csproj -c Release -o publish --self-contained false
 
-    - name: List published files
-      run: ls -la publish/
-
     - name: Deploy to MonsterASP via FTP
       run: |
         sudo apt-get update && sudo apt-get install -y lftp
+
+        # 1. Upload app_offline.htm to stop the app
+        echo '<html><body><h1>Deploying...</h1></body></html>' > app_offline.htm
+        lftp -c "
+          set ssl:verify-certificate no;
+          set net:timeout 60;
+          set net:max-retries 3;
+          set ftp:passive-mode yes;
+          open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
+          put app_offline.htm -o /wwwroot/app_offline.htm;
+          bye;
+        "
+        echo "Waiting for app to stop..."
+        sleep 10
+
+        # 2. Remove old files from wwwroot before uploading new ones
         lftp -c "
           set ssl:verify-certificate no;
           set net:timeout 60;
@@ -40,6 +53,29 @@ jobs:
           set ftp:passive-mode yes;
           open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
           cd /wwwroot;
-          mput -e publish/*;
+          rm -rf bin obj logs;
           bye;
         "
+
+        # 3. Deploy all files from publish/ to /wwwroot
+        lftp -c "
+          set ssl:verify-certificate no;
+          set net:timeout 60;
+          set net:max-retries 3;
+          set ftp:passive-mode yes;
+          open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
+          mirror -R --verbose --no-perms --ignore-time --parallel=1 --exclude logs/ ./publish /wwwroot;
+          bye;
+        "
+
+        # 4. Remove app_offline.htm to restart the app
+        lftp -c "
+          set ssl:verify-certificate no;
+          set net:timeout 60;
+          set net:max-retries 3;
+          set ftp:passive-mode yes;
+          open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
+          rm /wwwroot/app_offline.htm;
+          bye;
+        "
+        echo "Deploy complete!"
