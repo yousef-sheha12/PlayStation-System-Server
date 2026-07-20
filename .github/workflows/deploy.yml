@@ -45,7 +45,7 @@ jobs:
         echo "Waiting for app to stop..."
         sleep 10
 
-        # 2. Remove old files from wwwroot before uploading new ones
+        # 2. Remove ALL old files from wwwroot before uploading new ones
         lftp -c "
           set ssl:verify-certificate no;
           set net:timeout 60;
@@ -53,7 +53,7 @@ jobs:
           set ftp:passive-mode yes;
           open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
           cd /wwwroot;
-          rm -rf bin obj logs;
+          rm -rf .github PlayStation.API PlayStation.Application PlayStation.Domain PlayStation.Infrastructure publish publish.zip PlayStation.sln .gitignore bin obj logs;
           bye;
         "
 
