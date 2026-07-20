@@ -43,11 +43,12 @@ public class MappingProfile : Profile
         CreateMap<UpdateExpenseDto, Expense>();
 
         CreateMap<Session, SessionDto>()
-            .ForMember(dest => dest.DeviceName, opt => opt.MapFrom(src => src.Device.Name))
-            .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer != null ? src.Customer.Name : src.CustomerName))
+            .ForMember(dest => dest.DeviceName, opt => opt.MapFrom(src => src.Device != null ? src.Device.Name : string.Empty))
+            .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer != null ? src.Customer.Name : null))
             .ForMember(dest => dest.Products, opt => opt.MapFrom(src => src.SessionProducts))
             .ForMember(dest => dest.SessionProducts, opt => opt.MapFrom(src => src.SessionProducts))
-            .ForMember(dest => dest.TotalPauseDurationSeconds, opt => opt.MapFrom(src => src.TotalPauseDuration.HasValue ? src.TotalPauseDuration.Value.TotalSeconds : (double?)null));
+            .ForMember(dest => dest.TotalPauseDurationSeconds, opt => opt.MapFrom(src => src.TotalPauseDuration.HasValue ? src.TotalPauseDuration.Value.TotalSeconds : (double?)null))
+            .ForMember(dest => dest.HourlyRate, opt => opt.MapFrom(src => src.Device != null ? src.Device.HourlyRate : 0));
 
         CreateMap<SessionProduct, SessionProductDto>()
             .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name));

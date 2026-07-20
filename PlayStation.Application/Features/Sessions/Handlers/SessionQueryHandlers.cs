@@ -1,5 +1,6 @@
 using AutoMapper;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using PlayStation.Application.DTOs.Session;
 using PlayStation.Application.Features.Sessions.Queries;
 using PlayStation.Application.Interfaces;
@@ -22,7 +23,12 @@ public class GetAllSessionsHandler : IRequestHandler<GetAllSessionsQuery, Result
 
     public async Task<Result<List<SessionDto>>> Handle(GetAllSessionsQuery request, CancellationToken cancellationToken)
     {
-        var sessions = await _unitOfWork.Repository<Session>().FindAsync(s => !s.IsDeleted);
+        var sessions = await _unitOfWork.Repository<Session>().Query()
+            .Include(s => s.Device)
+            .Include(s => s.Customer)
+            .Include(s => s.SessionProducts).ThenInclude(sp => sp.Product)
+            .Where(s => !s.IsDeleted)
+            .ToListAsync();
         var sessionDtos = _mapper.Map<List<SessionDto>>(sessions);
         return Result<List<SessionDto>>.Success(sessionDtos);
     }
@@ -41,8 +47,12 @@ public class GetSessionByIdHandler : IRequestHandler<GetSessionByIdQuery, Result
 
     public async Task<Result<SessionDto>> Handle(GetSessionByIdQuery request, CancellationToken cancellationToken)
     {
-        var session = await _unitOfWork.Repository<Session>().GetByIdAsync(request.Id);
-        if (session == null || session.IsDeleted)
+        var session = await _unitOfWork.Repository<Session>().Query()
+            .Include(s => s.Device)
+            .Include(s => s.Customer)
+            .Include(s => s.SessionProducts).ThenInclude(sp => sp.Product)
+            .FirstOrDefaultAsync(s => s.Id == request.Id && !s.IsDeleted);
+        if (session == null)
             return Result<SessionDto>.Failure("Session not found");
 
         var sessionDto = _mapper.Map<SessionDto>(session);
@@ -63,8 +73,12 @@ public class GetActiveSessionsHandler : IRequestHandler<GetActiveSessionsQuery, 
 
     public async Task<Result<List<SessionDto>>> Handle(GetActiveSessionsQuery request, CancellationToken cancellationToken)
     {
-        var sessions = await _unitOfWork.Repository<Session>().FindAsync(s =>
-            !s.IsDeleted && (s.Status == SessionStatus.Active || s.Status == SessionStatus.Paused));
+        var sessions = await _unitOfWork.Repository<Session>().Query()
+            .Include(s => s.Device)
+            .Include(s => s.Customer)
+            .Include(s => s.SessionProducts).ThenInclude(sp => sp.Product)
+            .Where(s => !s.IsDeleted && (s.Status == SessionStatus.Active || s.Status == SessionStatus.Paused))
+            .ToListAsync();
         var sessionDtos = _mapper.Map<List<SessionDto>>(sessions);
         return Result<List<SessionDto>>.Success(sessionDtos);
     }
@@ -83,7 +97,12 @@ public class GetSessionsByStatusHandler : IRequestHandler<GetSessionsByStatusQue
 
     public async Task<Result<List<SessionDto>>> Handle(GetSessionsByStatusQuery request, CancellationToken cancellationToken)
     {
-        var sessions = await _unitOfWork.Repository<Session>().FindAsync(s => !s.IsDeleted && s.Status == request.Status);
+        var sessions = await _unitOfWork.Repository<Session>().Query()
+            .Include(s => s.Device)
+            .Include(s => s.Customer)
+            .Include(s => s.SessionProducts).ThenInclude(sp => sp.Product)
+            .Where(s => !s.IsDeleted && s.Status == request.Status)
+            .ToListAsync();
         var sessionDtos = _mapper.Map<List<SessionDto>>(sessions);
         return Result<List<SessionDto>>.Success(sessionDtos);
     }
@@ -102,7 +121,12 @@ public class GetSessionsByDeviceHandler : IRequestHandler<GetSessionsByDeviceQue
 
     public async Task<Result<List<SessionDto>>> Handle(GetSessionsByDeviceQuery request, CancellationToken cancellationToken)
     {
-        var sessions = await _unitOfWork.Repository<Session>().FindAsync(s => !s.IsDeleted && s.DeviceId == request.DeviceId);
+        var sessions = await _unitOfWork.Repository<Session>().Query()
+            .Include(s => s.Device)
+            .Include(s => s.Customer)
+            .Include(s => s.SessionProducts).ThenInclude(sp => sp.Product)
+            .Where(s => !s.IsDeleted && s.DeviceId == request.DeviceId)
+            .ToListAsync();
         var sessionDtos = _mapper.Map<List<SessionDto>>(sessions);
         return Result<List<SessionDto>>.Success(sessionDtos);
     }
@@ -121,10 +145,12 @@ public class GetSessionsByDateRangeHandler : IRequestHandler<GetSessionsByDateRa
 
     public async Task<Result<List<SessionDto>>> Handle(GetSessionsByDateRangeQuery request, CancellationToken cancellationToken)
     {
-        var sessions = await _unitOfWork.Repository<Session>().FindAsync(s =>
-            !s.IsDeleted &&
-            s.StartTime >= request.StartDate &&
-            s.StartTime <= request.EndDate.AddDays(1));
+        var sessions = await _unitOfWork.Repository<Session>().Query()
+            .Include(s => s.Device)
+            .Include(s => s.Customer)
+            .Include(s => s.SessionProducts).ThenInclude(sp => sp.Product)
+            .Where(s => !s.IsDeleted && s.StartTime >= request.StartDate && s.StartTime <= request.EndDate.AddDays(1))
+            .ToListAsync();
         var sessionDtos = _mapper.Map<List<SessionDto>>(sessions);
         return Result<List<SessionDto>>.Success(sessionDtos);
     }
