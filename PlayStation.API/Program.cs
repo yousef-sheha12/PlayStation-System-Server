@@ -199,15 +199,52 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        logger.LogWarning(ex, "Migration failed, database may already exist with tables. Attempting EnsureCreated as fallback.");
+        logger.LogWarning(ex, "Migration failed. Database may have been created outside EF Core migrations. Attempting recovery.");
+
         try
         {
-            context.Database.EnsureCreated();
-            logger.LogInformation("Database EnsureCreated succeeded");
+            var tablesExist = context.Database.ExecuteSqlRaw(
+                "SELECT CASE WHEN EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Devices') THEN 1 ELSE 0 END") == 1;
+
+            if (tablesExist)
+            {
+                logger.LogInformation("Tables exist. Creating migration history to recover...");
+
+                context.Database.ExecuteSqlRaw(@"
+                    IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+                    BEGIN
+                        CREATE TABLE [__EFMigrationsHistory] (
+                            [MigrationId] nvarchar(150) NOT NULL,
+                            [ProductVersion] nvarchar(32) NOT NULL,
+                            CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
+                        );
+                    END");
+
+                context.Database.ExecuteSqlRaw(
+                    "IF NOT EXISTS (SELECT 1 FROM [__EFMigrationsHistory] WHERE [MigrationId] = @p0) " +
+                    "INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES (@p0, @p1)",
+                    "20260718202216_InitialCreate", "9.0.0");
+
+                logger.LogInformation("InitialCreate marked as applied. Applying remaining migrations...");
+                context.Database.Migrate();
+            }
+            else
+            {
+                logger.LogInformation("No tables found. Creating database...");
+                context.Database.EnsureCreated();
+            }
         }
         catch (Exception ex2)
         {
-            logger.LogError(ex2, "Database EnsureCreated also failed");
+            logger.LogError(ex2, "Database recovery failed. Falling back to EnsureCreated.");
+            try
+            {
+                context.Database.EnsureCreated();
+            }
+            catch (Exception ex3)
+            {
+                logger.LogError(ex3, "EnsureCreated also failed");
+            }
         }
     }
 

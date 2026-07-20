@@ -53,9 +53,10 @@ public class PlayStationDbContext : DbContext
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
-        modelBuilder.Entity<Session>(entity =>
+            modelBuilder.Entity<Session>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.HourlyRate).HasColumnType("decimal(18,2)");
             entity.Property(e => e.TotalHours).HasColumnType("decimal(18,2)");
             entity.Property(e => e.DeviceCost).HasColumnType("decimal(18,2)");
             entity.Property(e => e.ProductsCost).HasColumnType("decimal(18,2)");
