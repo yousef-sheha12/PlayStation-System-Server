@@ -146,6 +146,39 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+app.MapGet("/", () => Results.Ok(new
+{
+    name = "PlayStation Management System API",
+    version = "v1",
+    status = "running",
+    swagger = app.Environment.IsProduction() ? null : "/swagger",
+    endpoints = new[]
+    {
+        "POST /api/auth/login",
+        "POST /api/auth/register",
+        "GET /api/dashboard",
+        "GET /api/sessions",
+        "GET /api/products",
+        "GET /api/invoices",
+        "GET /api/reports",
+        "GET /api/devices",
+        "GET /health"
+    }
+}));
+
+app.MapGet("/health", async (PlayStationDbContext context) =>
+{
+    try
+    {
+        await context.Database.CanConnectAsync();
+        return Results.Ok(new { status = "healthy", database = "connected" });
+    }
+    catch
+    {
+        return Results.Ok(new { status = "unhealthy", database = "disconnected" });
+    }
+});
+
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<PlayStationDbContext>();

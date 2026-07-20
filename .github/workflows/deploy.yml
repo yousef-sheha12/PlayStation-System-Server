@@ -27,6 +27,27 @@ jobs:
     - name: Publish
       run: dotnet publish PlayStation.API/PlayStation.API.csproj -c Release -o publish --self-contained false
 
+    - name: Configure web.config for Production
+      run: |
+        cd publish
+        cat > web.config << 'WEBCONFIG'
+        <?xml version="1.0" encoding="utf-8"?>
+        <configuration>
+          <location path="." inheritInChildApplications="false">
+            <system.webServer>
+              <handlers>
+                <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified" />
+              </handlers>
+              <aspNetCore processPath="dotnet" arguments=".\PlayStation.API.dll" stdoutLogEnabled="true" stdoutLogFile=".\logs\stdout" hostingModel="inprocess">
+                <environmentVariables>
+                  <environmentVariable name="ASPNETCORE_ENVIRONMENT" value="Production" />
+                </environmentVariables>
+              </aspNetCore>
+            </system.webServer>
+          </location>
+        </configuration>
+        WEBCONFIG
+
     - name: Deploy to MonsterASP via FTP
       run: |
         sudo apt-get update && sudo apt-get install -y lftp
