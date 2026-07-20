@@ -34,7 +34,9 @@ jobs:
           set ssl:verify-certificate no;
           set ftp:site-chmod no;
           set ftp:chmod no;
+          set net:timeout 30;
+          set net:max-retries 3;
           open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
-          mirror -R --delete --verbose --no-perms ./publish /wwwroot;
+          mirror -R --verbose --no-perms --ignore-time --parallel=1 --exclude logs/ ./publish /wwwroot;
           bye;
         "

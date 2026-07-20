@@ -165,18 +165,29 @@ using (var scope = app.Services.CreateScope())
         }
 
         var workerRole = context.Roles.FirstOrDefault(r => r.Name == "Worker");
-        if (workerRole != null && !context.Users.Any(u => u.Email == "worker@playstation.com"))
+        if (workerRole != null)
         {
-            context.Users.Add(new PlayStation.Domain.Entities.User
+            var workerUser = context.Users.FirstOrDefault(u => u.Email == "worker@playstation.com");
+            if (workerUser == null)
             {
-                Email = "worker@playstation.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Worker@123"),
-                FullName = "System Worker",
-                RoleId = workerRole.Id,
-                IsActive = true,
-                CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-            });
-            context.SaveChanges();
+                context.Users.Add(new PlayStation.Domain.Entities.User
+                {
+                    Email = "worker@playstation.com",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Worker@123"),
+                    FullName = "PlayStation Worker",
+                    RoleId = workerRole.Id,
+                    IsActive = true,
+                    CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                });
+                context.SaveChanges();
+            }
+            else
+            {
+                workerUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword("Worker@123");
+                workerUser.FullName = "PlayStation Worker";
+                workerUser.IsActive = true;
+                context.SaveChanges();
+            }
         }
     }
     catch (Exception ex)
