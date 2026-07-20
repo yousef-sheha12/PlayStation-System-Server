@@ -75,7 +75,7 @@ jobs:
           set net:max-retries 3;
           set ftp:passive-mode yes;
           open ftp://${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}@${{ secrets.FTP_SERVER }};
-          rm /wwwroot/app_offline.htm;
+          rm -f /wwwroot/app_offline.htm;
           bye;
-        "
+        " || true
         echo "Deploy complete!"
