@@ -35,6 +35,7 @@ public class SessionService : ISessionService
         {
             DeviceId = deviceId,
             CustomerId = customerId,
+            HourlyRate = device.HourlyRate,
             StartTime = DateTime.UtcNow,
             Status = SessionStatus.Active
         };

@@ -11,6 +11,8 @@ public class SessionDto
     public string? CustomerName { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime? EndTime { get; set; }
+    public DateTime? PauseTime { get; set; }
+    public double? TotalPauseDurationSeconds { get; set; }
     public decimal HourlyRate { get; set; }
     public decimal TotalHours { get; set; }
     public decimal DeviceCost { get; set; }
@@ -18,6 +20,7 @@ public class SessionDto
     public decimal Discount { get; set; }
     public decimal TotalCost { get; set; }
     public SessionStatus Status { get; set; }
+    public DateTime CreatedAt { get; set; }
     public List<SessionProductDto> Products { get; set; } = new();
     public List<SessionProductDto> SessionProducts { get; set; } = new();
 }

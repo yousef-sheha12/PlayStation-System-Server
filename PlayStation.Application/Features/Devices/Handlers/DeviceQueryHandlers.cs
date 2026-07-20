@@ -24,6 +24,14 @@ public class GetAllDevicesHandler : IRequestHandler<GetAllDevicesQuery, Result<L
     {
         var devices = await _unitOfWork.Repository<Device>().FindAsync(d => !d.IsDeleted);
         var deviceDtos = _mapper.Map<List<DeviceDto>>(devices);
+
+        foreach (var deviceDto in deviceDtos)
+        {
+            deviceDto.ActiveSessionCount = await _unitOfWork.Repository<Session>().CountAsync(s =>
+                s.DeviceId == deviceDto.Id && !s.IsDeleted &&
+                (s.Status == SessionStatus.Active || s.Status == SessionStatus.Paused));
+        }
+
         return Result<List<DeviceDto>>.Success(deviceDtos);
     }
 }
@@ -46,6 +54,11 @@ public class GetDeviceByIdHandler : IRequestHandler<GetDeviceByIdQuery, Result<D
             return Result<DeviceDto>.Failure("Device not found");
 
         var deviceDto = _mapper.Map<DeviceDto>(device);
+
+        deviceDto.ActiveSessionCount = await _unitOfWork.Repository<Session>().CountAsync(s =>
+            s.DeviceId == deviceDto.Id && !s.IsDeleted &&
+            (s.Status == SessionStatus.Active || s.Status == SessionStatus.Paused));
+
         return Result<DeviceDto>.Success(deviceDto);
     }
 }
@@ -65,6 +78,14 @@ public class GetDevicesByStatusHandler : IRequestHandler<GetDevicesByStatusQuery
     {
         var devices = await _unitOfWork.Repository<Device>().FindAsync(d => !d.IsDeleted && d.Status == request.Status);
         var deviceDtos = _mapper.Map<List<DeviceDto>>(devices);
+
+        foreach (var deviceDto in deviceDtos)
+        {
+            deviceDto.ActiveSessionCount = await _unitOfWork.Repository<Session>().CountAsync(s =>
+                s.DeviceId == deviceDto.Id && !s.IsDeleted &&
+                (s.Status == SessionStatus.Active || s.Status == SessionStatus.Paused));
+        }
+
         return Result<List<DeviceDto>>.Success(deviceDtos);
     }
 }
