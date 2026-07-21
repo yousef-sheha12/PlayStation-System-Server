@@ -1,4 +1,6 @@
+using AutoMapper;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using PlayStation.Application.DTOs.Invoice;
 using PlayStation.Application.Features.Invoices.Commands;
 using PlayStation.Application.Interfaces;
@@ -19,8 +21,11 @@ public class GenerateInvoiceHandler : IRequestHandler<GenerateInvoiceCommand, Re
 
     public async Task<Result<int>> Handle(GenerateInvoiceCommand request, CancellationToken cancellationToken)
     {
-        var session = await _unitOfWork.Repository<Session>().GetByIdAsync(request.Request.SessionId);
-        if (session == null || session.IsDeleted)
+        var session = await _unitOfWork.Repository<Session>().Query()
+            .Include(s => s.Device)
+            .FirstOrDefaultAsync(s => s.Id == request.Request.SessionId && !s.IsDeleted, cancellationToken);
+
+        if (session == null)
             return Result<int>.Failure("Session not found");
 
         if (session.Status != SessionStatus.Ended)
@@ -32,25 +37,33 @@ public class GenerateInvoiceHandler : IRequestHandler<GenerateInvoiceCommand, Re
         if (existingInvoice != null)
             return Result<int>.Failure("Invoice already exists for this session");
 
-        var sessionProducts = await _unitOfWork.Repository<SessionProduct>().FindAsync(sp => sp.SessionId == request.Request.SessionId);
+        var sessionProducts = (await _unitOfWork.Repository<SessionProduct>().FindAsync(sp => sp.SessionId == request.Request.SessionId)).ToList();
 
         var invoiceNumber = $"INV-{DateTime.UtcNow:yyyyMMdd}-{DateTime.UtcNow.Ticks.ToString()[^6..]}";
+
+        var discount = request.Request.Discount;
+        var taxRate = request.Request.TaxRate;
+        var subTotal = session.TotalCost;
+        var taxableAmount = subTotal - discount;
+        var taxAmount = taxableAmount * taxRate / 100;
+        var totalAmount = taxableAmount + taxAmount;
 
         var invoice = new Invoice
         {
             SessionId = request.Request.SessionId,
             InvoiceNumber = invoiceNumber,
-            SubTotal = session.TotalCost,
-            Discount = request.Request.Discount,
-            TaxRate = request.Request.TaxRate,
-            TaxAmount = (session.TotalCost - request.Request.Discount) * request.Request.TaxRate / 100,
-            TotalAmount = (session.TotalCost - request.Request.Discount) + ((session.TotalCost - request.Request.Discount) * request.Request.TaxRate / 100),
+            SubTotal = subTotal,
+            Discount = discount,
+            TaxRate = taxRate,
+            TaxAmount = taxAmount,
+            TotalAmount = totalAmount,
             PaymentMethod = request.Request.PaymentMethod,
             IsPaid = true,
             PaidAt = DateTime.UtcNow
         };
 
         await _unitOfWork.Repository<Invoice>().AddAsync(invoice);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         foreach (var sessionProduct in sessionProducts)
         {
@@ -63,11 +76,6 @@ public class GenerateInvoiceHandler : IRequestHandler<GenerateInvoiceCommand, Re
             };
             await _unitOfWork.Repository<InvoiceItem>().AddAsync(invoiceItem);
         }
-
-        session.Discount = request.Request.Discount;
-        session.TotalCost = session.DeviceCost + session.ProductsCost - request.Request.Discount;
-        session.UpdatedAt = DateTime.UtcNow;
-        await _unitOfWork.Repository<Session>().UpdateAsync(session);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

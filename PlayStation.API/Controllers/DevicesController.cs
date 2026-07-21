@@ -43,6 +43,7 @@ public class DevicesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateDeviceDto device)
     {
         var result = await _mediator.Send(new CreateDeviceCommand(device));
@@ -51,6 +52,7 @@ public class DevicesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateDeviceDto device)
     {
         var result = await _mediator.Send(new UpdateDeviceCommand(id, device));
@@ -59,6 +61,7 @@ public class DevicesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         var result = await _mediator.Send(new DeleteDeviceCommand(id));
