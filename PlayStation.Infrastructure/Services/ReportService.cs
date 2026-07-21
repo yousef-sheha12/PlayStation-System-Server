@@ -139,20 +139,24 @@ public class ReportService : IReportService
 
     public async Task<List<MostSoldProductDto>> GetMostSoldProductsAsync(int count = 5)
     {
-        return await _context.SessionProducts
+        var data = await _context.SessionProducts
             .Where(sp => !sp.IsDeleted)
-            .GroupBy(sp => new { sp.ProductId, sp.Product.Name, CategoryName = sp.Product.Category.Name })
+            .Include(sp => sp.Product).ThenInclude(p => p.Category)
+            .ToListAsync();
+
+        return data
+            .GroupBy(sp => new { sp.ProductId, sp.Product?.Name, CategoryName = sp.Product?.Category?.Name ?? "" })
             .Select(g => new MostSoldProductDto
             {
                 ProductId = g.Key.ProductId,
-                ProductName = g.Key.Name,
+                ProductName = g.Key.Name ?? "",
                 CategoryName = g.Key.CategoryName,
                 TotalQuantitySold = g.Sum(sp => sp.Quantity),
                 TotalRevenue = g.Sum(sp => sp.Quantity * sp.UnitPrice)
             })
             .OrderByDescending(p => p.TotalQuantitySold)
             .Take(count)
-            .ToListAsync();
+            .ToList();
     }
 
     public async Task<ExpensesReportDto> GetExpensesReportAsync(DateTime startDate, DateTime endDate)
