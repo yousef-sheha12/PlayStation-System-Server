@@ -148,7 +148,7 @@ public class ReportService : IReportService
                 ProductName = g.Key.Name,
                 CategoryName = g.Key.CategoryName,
                 TotalQuantitySold = g.Sum(sp => sp.Quantity),
-                TotalRevenue = g.Sum(sp => sp.TotalPrice)
+                TotalRevenue = g.Sum(sp => sp.Quantity * sp.UnitPrice)
             })
             .OrderByDescending(p => p.TotalQuantitySold)
             .Take(count)

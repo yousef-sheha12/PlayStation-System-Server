@@ -199,53 +199,24 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        logger.LogWarning(ex, "Migration failed. Database may have been created outside EF Core migrations. Attempting recovery.");
+        logger.LogWarning(ex, "Migration failed. Falling back to EnsureCreated.");
+        try { context.Database.EnsureCreated(); } catch (Exception ex2) { logger.LogError(ex2, "EnsureCreated failed"); }
+    }
 
-        try
-        {
-            var tablesExist = context.Database.ExecuteSqlRaw(
-                "SELECT CASE WHEN EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Devices') THEN 1 ELSE 0 END") == 1;
+    try
+    {
+        context.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Sessions' AND COLUMN_NAME='CustomerName')
+                ALTER TABLE Sessions ADD CustomerName nvarchar(200) NULL;
 
-            if (tablesExist)
-            {
-                logger.LogInformation("Tables exist. Creating migration history to recover...");
-
-                context.Database.ExecuteSqlRaw(@"
-                    IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
-                    BEGIN
-                        CREATE TABLE [__EFMigrationsHistory] (
-                            [MigrationId] nvarchar(150) NOT NULL,
-                            [ProductVersion] nvarchar(32) NOT NULL,
-                            CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
-                        );
-                    END");
-
-                context.Database.ExecuteSqlRaw(
-                    "IF NOT EXISTS (SELECT 1 FROM [__EFMigrationsHistory] WHERE [MigrationId] = @p0) " +
-                    "INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES (@p0, @p1)",
-                    "20260718202216_InitialCreate", "9.0.0");
-
-                logger.LogInformation("InitialCreate marked as applied. Applying remaining migrations...");
-                context.Database.Migrate();
-            }
-            else
-            {
-                logger.LogInformation("No tables found. Creating database...");
-                context.Database.EnsureCreated();
-            }
-        }
-        catch (Exception ex2)
-        {
-            logger.LogError(ex2, "Database recovery failed. Falling back to EnsureCreated.");
-            try
-            {
-                context.Database.EnsureCreated();
-            }
-            catch (Exception ex3)
-            {
-                logger.LogError(ex3, "EnsureCreated also failed");
-            }
-        }
+            IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Sessions' AND COLUMN_NAME='HourlyRate')
+                ALTER TABLE Sessions ADD HourlyRate decimal(18,2) NOT NULL DEFAULT 0;
+        ");
+        logger.LogInformation("Ensured Session columns exist (CustomerName, HourlyRate)");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Could not add missing columns (they may already exist)");
     }
 
     try
