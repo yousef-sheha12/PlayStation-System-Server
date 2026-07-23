@@ -33,11 +33,17 @@ public class GenerateInvoiceHandler : IRequestHandler<GenerateInvoiceCommand, Re
         if (session.Status != SessionStatus.Ended)
             return Result<InvoiceDto>.Failure("Session must be ended before generating invoice");
 
-        var existingInvoice = (await _unitOfWork.Repository<Invoice>().FindAsync(i =>
-            i.SessionId == request.Request.SessionId && !i.IsDeleted)).FirstOrDefault();
+        var existingInvoice = await _unitOfWork.Repository<Invoice>().Query()
+            .Include(i => i.Session).ThenInclude(s => s.Device)
+            .Include(i => i.Session).ThenInclude(s => s.Customer)
+            .Include(i => i.InvoiceItems).ThenInclude(ii => ii.Product)
+            .FirstOrDefaultAsync(i => i.SessionId == request.Request.SessionId && !i.IsDeleted, cancellationToken);
 
         if (existingInvoice != null)
-            return Result<InvoiceDto>.Failure("Invoice already exists for this session");
+        {
+            var existingDto = _mapper.Map<InvoiceDto>(existingInvoice);
+            return Result<InvoiceDto>.Success(existingDto, "Invoice already exists for this session");
+        }
 
         var sessionProducts = (await _unitOfWork.Repository<SessionProduct>().FindAsync(sp => sp.SessionId == request.Request.SessionId)).ToList();
 
