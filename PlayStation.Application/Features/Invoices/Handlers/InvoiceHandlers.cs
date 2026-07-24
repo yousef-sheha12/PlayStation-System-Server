@@ -23,21 +23,25 @@ public class GenerateInvoiceHandler : IRequestHandler<GenerateInvoiceCommand, Re
 
     public async Task<Result<InvoiceDto>> Handle(GenerateInvoiceCommand request, CancellationToken cancellationToken)
     {
+        var sessionId = request.Request.SessionId;
+
         var session = await _unitOfWork.Repository<Session>().Query()
+            .AsNoTracking()
             .Include(s => s.Device)
-            .FirstOrDefaultAsync(s => s.Id == request.Request.SessionId && !s.IsDeleted, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == sessionId, cancellationToken);
 
         if (session == null)
-            return Result<InvoiceDto>.Failure("Session not found");
+            return Result<InvoiceDto>.Failure($"Session {sessionId} not found");
 
         if (session.Status != SessionStatus.Ended)
-            return Result<InvoiceDto>.Failure("Session must be ended before generating invoice");
+            return Result<InvoiceDto>.Failure($"Session {sessionId} must be ended before generating invoice (current status: {session.Status})");
 
         var existingInvoice = await _unitOfWork.Repository<Invoice>().Query()
+            .AsNoTracking()
             .Include(i => i.Session).ThenInclude(s => s.Device)
             .Include(i => i.Session).ThenInclude(s => s.Customer)
             .Include(i => i.InvoiceItems).ThenInclude(ii => ii.Product)
-            .FirstOrDefaultAsync(i => i.SessionId == request.Request.SessionId && !i.IsDeleted, cancellationToken);
+            .FirstOrDefaultAsync(i => i.SessionId == sessionId && !i.IsDeleted, cancellationToken);
 
         if (existingInvoice != null)
         {
@@ -82,6 +86,7 @@ public class GenerateInvoiceHandler : IRequestHandler<GenerateInvoiceCommand, Re
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var createdInvoice = await _unitOfWork.Repository<Invoice>().Query()
+            .AsNoTracking()
             .Include(i => i.Session).ThenInclude(s => s.Device)
             .Include(i => i.Session).ThenInclude(s => s.Customer)
             .Include(i => i.InvoiceItems).ThenInclude(ii => ii.Product)
