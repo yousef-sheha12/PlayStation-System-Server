@@ -53,3 +53,10 @@ public class EndSessionDto
 {
     public decimal Discount { get; set; }
 }
+
+public class EndSessionWithInvoiceDto
+{
+    public decimal Discount { get; set; }
+    public decimal TaxRate { get; set; }
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Cash;
+}

@@ -1,5 +1,7 @@
 using AutoMapper;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
+using PlayStation.Application.DTOs.Invoice;
 using PlayStation.Application.DTOs.Session;
 using PlayStation.Application.Features.Sessions.Commands;
 using PlayStation.Application.Interfaces;
@@ -256,5 +258,131 @@ public class RemoveProductFromSessionHandler : IRequestHandler<RemoveProductFrom
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success("Product removed from session successfully");
+    }
+}
+
+public class EndSessionAndGenerateInvoiceHandler : IRequestHandler<EndSessionAndGenerateInvoiceCommand, Result<InvoiceDto>>
+{
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
+
+    public EndSessionAndGenerateInvoiceHandler(IUnitOfWork unitOfWork, IMapper mapper)
+    {
+        _unitOfWork = unitOfWork;
+        _mapper = mapper;
+    }
+
+    public async Task<Result<InvoiceDto>> Handle(EndSessionAndGenerateInvoiceCommand request, CancellationToken cancellationToken)
+    {
+        var sessionId = request.SessionId;
+        var req = request.Request;
+
+        var session = await _unitOfWork.Repository<Session>().GetByIdAsync(sessionId);
+        if (session == null || session.IsDeleted)
+            return Result<InvoiceDto>.Failure("Session not found");
+
+        if (session.Status == SessionStatus.Ended)
+        {
+            var existingForEnded = await _unitOfWork.Repository<Invoice>().Query()
+                .AsNoTracking()
+                .Include(i => i.Session).ThenInclude(s => s.Device)
+                .Include(i => i.Session).ThenInclude(s => s.Customer)
+                .Include(i => i.InvoiceItems).ThenInclude(ii => ii.Product)
+                .FirstOrDefaultAsync(i => i.SessionId == sessionId && !i.IsDeleted, cancellationToken);
+
+            if (existingForEnded != null)
+                return Result<InvoiceDto>.Success(_mapper.Map<InvoiceDto>(existingForEnded), "Invoice already exists");
+
+            return Result<InvoiceDto>.Failure("Session already ended");
+        }
+
+        session.EndTime = DateTime.UtcNow;
+        session.Status = SessionStatus.Ended;
+        session.UpdatedAt = DateTime.UtcNow;
+        session.Discount = req.Discount;
+
+        if (session.PauseTime.HasValue)
+        {
+            var pauseDuration = DateTime.UtcNow - session.PauseTime.Value;
+            session.TotalPauseDuration = (session.TotalPauseDuration ?? TimeSpan.Zero) + pauseDuration;
+        }
+
+        var totalDuration = session.EndTime.Value - session.StartTime;
+        if (session.TotalPauseDuration.HasValue)
+            totalDuration -= session.TotalPauseDuration.Value;
+
+        session.TotalHours = (decimal)totalDuration.TotalHours;
+
+        var device = await _unitOfWork.Repository<Device>().GetByIdAsync(session.DeviceId);
+        if (device != null)
+        {
+            session.DeviceCost = session.TotalHours * session.HourlyRate;
+            device.Status = DeviceStatus.Available;
+            await _unitOfWork.Repository<Device>().UpdateAsync(device);
+        }
+
+        var sessionProducts = (await _unitOfWork.Repository<SessionProduct>().FindAsync(sp => sp.SessionId == sessionId)).ToList();
+        session.ProductsCost = sessionProducts.Sum(sp => sp.TotalPrice);
+        session.TotalCost = session.DeviceCost + session.ProductsCost - session.Discount;
+
+        await _unitOfWork.Repository<Session>().UpdateAsync(session);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var existingInvoice = await _unitOfWork.Repository<Invoice>().Query()
+            .AsNoTracking()
+            .Include(i => i.Session).ThenInclude(s => s.Device)
+            .Include(i => i.Session).ThenInclude(s => s.Customer)
+            .Include(i => i.InvoiceItems).ThenInclude(ii => ii.Product)
+            .FirstOrDefaultAsync(i => i.SessionId == sessionId && !i.IsDeleted, cancellationToken);
+
+        if (existingInvoice != null)
+            return Result<InvoiceDto>.Success(_mapper.Map<InvoiceDto>(existingInvoice), "Invoice already exists");
+
+        var invoiceNumber = $"INV-{DateTime.UtcNow:yyyyMMdd}-{DateTime.UtcNow.Ticks.ToString()[^6..]}";
+
+        var invoice = new Invoice
+        {
+            SessionId = sessionId,
+            InvoiceNumber = invoiceNumber,
+            SubTotal = session.TotalCost + session.Discount,
+            Discount = session.Discount,
+            TaxRate = req.TaxRate,
+            TaxAmount = session.TotalCost * req.TaxRate / 100,
+            TotalAmount = session.TotalCost + (session.TotalCost * req.TaxRate / 100),
+            PaymentMethod = req.PaymentMethod,
+            IsPaid = true,
+            PaidAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.Repository<Invoice>().AddAsync(invoice);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        foreach (var sp in sessionProducts)
+        {
+            var invoiceItem = new InvoiceItem
+            {
+                InvoiceId = invoice.Id,
+                ProductId = sp.ProductId,
+                Quantity = sp.Quantity,
+                UnitPrice = sp.UnitPrice
+            };
+            await _unitOfWork.Repository<InvoiceItem>().AddAsync(invoiceItem);
+        }
+
+        if (sessionProducts.Any())
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var createdInvoice = await _unitOfWork.Repository<Invoice>().Query()
+            .AsNoTracking()
+            .Include(i => i.Session).ThenInclude(s => s.Device)
+            .Include(i => i.Session).ThenInclude(s => s.Customer)
+            .Include(i => i.InvoiceItems).ThenInclude(ii => ii.Product)
+            .FirstOrDefaultAsync(i => i.Id == invoice.Id, cancellationToken);
+
+        if (createdInvoice == null)
+            return Result<InvoiceDto>.Failure("Invoice was created but could not be retrieved");
+
+        var invoiceDto = _mapper.Map<InvoiceDto>(createdInvoice);
+        return Result<InvoiceDto>.Success(invoiceDto, "Session ended and invoice generated successfully");
     }
 }

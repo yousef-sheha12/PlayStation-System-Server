@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PlayStation.Application.DTOs.Invoice;
 using PlayStation.Application.DTOs.Session;
 using PlayStation.Application.Features.Sessions.Commands;
 using PlayStation.Application.Features.Sessions.Queries;
@@ -91,6 +92,14 @@ public class SessionsController : ControllerBase
     public async Task<IActionResult> EndSession(int sessionId, [FromBody] EndSessionDto? request = null)
     {
         var result = await _mediator.Send(new EndSessionCommand(sessionId, request?.Discount ?? 0));
+        if (!result.IsSuccess) return BadRequest(result);
+        return Ok(result);
+    }
+
+    [HttpPost("{sessionId}/end-and-invoice")]
+    public async Task<IActionResult> EndSessionAndInvoice(int sessionId, [FromBody] EndSessionWithInvoiceDto request)
+    {
+        var result = await _mediator.Send(new EndSessionAndGenerateInvoiceCommand(sessionId, request));
         if (!result.IsSuccess) return BadRequest(result);
         return Ok(result);
     }

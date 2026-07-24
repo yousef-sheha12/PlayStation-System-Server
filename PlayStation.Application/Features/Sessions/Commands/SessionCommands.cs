@@ -1,6 +1,8 @@
 using MediatR;
+using PlayStation.Application.DTOs.Invoice;
 using PlayStation.Application.DTOs.Session;
 using PlayStation.Domain.Common;
+using PlayStation.Domain.Enums;
 
 namespace PlayStation.Application.Features.Sessions.Commands;
 
@@ -10,3 +12,4 @@ public record ResumeSessionCommand(int SessionId) : IRequest<Result>;
 public record EndSessionCommand(int SessionId, decimal Discount = 0) : IRequest<Result<SessionDto>>;
 public record AddProductToSessionCommand(int SessionId, AddProductToSessionDto Request) : IRequest<Result>;
 public record RemoveProductFromSessionCommand(int SessionId, int ProductId) : IRequest<Result>;
+public record EndSessionAndGenerateInvoiceCommand(int SessionId, EndSessionWithInvoiceDto Request) : IRequest<Result<InvoiceDto>>;
