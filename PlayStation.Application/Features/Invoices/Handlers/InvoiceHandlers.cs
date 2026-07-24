@@ -92,7 +92,10 @@ public class GenerateInvoiceHandler : IRequestHandler<GenerateInvoiceCommand, Re
             .Include(i => i.InvoiceItems).ThenInclude(ii => ii.Product)
             .FirstOrDefaultAsync(i => i.Id == invoice.Id, cancellationToken);
 
-        var invoiceDto = _mapper.Map<InvoiceDto>(createdInvoice!);
+        if (createdInvoice == null)
+            return Result<InvoiceDto>.Failure("Invoice was created but could not be retrieved");
+
+        var invoiceDto = _mapper.Map<InvoiceDto>(createdInvoice);
         return Result<InvoiceDto>.Success(invoiceDto, "Invoice generated successfully");
     }
 }
